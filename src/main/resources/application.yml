@@ -1,0 +1,17 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: capability
+  r2dbc:
+      url: r2dbc:postgresql://localhost:5432/capability
+      username: postgres
+      password: root
+  sql:
+    init:
+      mode:
+      schema-locations: classpath:schema.sql
+  logging:
+    level:
+      org.springframework.web.reactive.function.server: DEBUG
+      org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
