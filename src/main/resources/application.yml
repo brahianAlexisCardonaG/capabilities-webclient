@@ -15,3 +15,12 @@ spring:
     level:
       org.springframework.web.reactive.function.server: DEBUG
       org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
+application:
+  security:
+    jwt:
+      secret-key: m2yrnAnikqppG3cqmTOGXExVuVlLxOvaN5q2Gqwel/aigX+wgP68HvbE1ypcpUBv
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

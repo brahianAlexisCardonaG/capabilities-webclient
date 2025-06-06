@@ -22,19 +22,19 @@ public class ApplyErrorHandler {
     private final BuildErrorResponse buildErrorRes;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public Mono<ServerResponse> applyErrorHandling(Mono<ServerResponse> mono, String msgId) {
+    public Mono<ServerResponse> applyErrorHandling(Mono<ServerResponse> mono) {
         return mono
                 .onErrorResume(ProcessorException.class, ex -> {
                     log.error("ProcessorException: {}", ex.getMessage());
                     HttpStatus status = TechnicalMessage.INTERNAL_ERROR.equals(ex.getTechnicalMessage())
                             ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.BAD_REQUEST;
                     return buildErrorRes.buildErrorResponse(
-                            status, msgId, ex.getTechnicalMessage(),
+                            status, ex.getTechnicalMessage(),
                             List.of(ErrorDto.builder().code(ex.getTechnicalMessage().getCode()).message(ex.getMessage()).build())
                     );
                 })
                 .onErrorResume(BusinessException.class, ex -> buildErrorRes.buildErrorResponse(
-                        HttpStatus.BAD_REQUEST, msgId, TechnicalMessage.INVALID_PARAMETERS,
+                        HttpStatus.BAD_REQUEST, TechnicalMessage.INVALID_PARAMETERS,
                         List.of(ErrorDto.builder().code(ex.getTechnicalMessage().getCode()).message(ex.getTechnicalMessage().getMessage()).param(ex.getTechnicalMessage().getParam()).build())
                 ))
                 .onErrorResume(WebClientResponseException.class, ex -> {
@@ -42,19 +42,19 @@ public class ApplyErrorHandler {
                     try {
                         ErrorDto err = objectMapper.readValue(ex.getResponseBodyAsString(), ErrorDto.class);
                         return buildErrorRes.buildErrorResponse(
-                                HttpStatus.valueOf(ex.getRawStatusCode()), msgId, TechnicalMessage.INVALID_REQUEST,
+                                HttpStatus.valueOf(ex.getRawStatusCode()), TechnicalMessage.INVALID_REQUEST,
                                 List.of(ErrorDto.builder().code(err.getCode()).message(err.getMessage()).param(err.getParam()).build())
                         );
                     } catch (Exception parseEx) {
                         log.error("Error parsing error response: {}", parseEx.getMessage());
                         return buildErrorRes.buildErrorResponse(
-                                HttpStatus.INTERNAL_SERVER_ERROR, msgId, TechnicalMessage.INTERNAL_ERROR,
+                                HttpStatus.INTERNAL_SERVER_ERROR, TechnicalMessage.INTERNAL_ERROR,
                                 List.of(ErrorDto.builder().code(TechnicalMessage.INTERNAL_ERROR.getCode()).message(TechnicalMessage.INTERNAL_ERROR.getMessage()).build())
                         );
                     }
                 })
                 .onErrorResume(ex -> buildErrorRes.buildErrorResponse(
-                        HttpStatus.INTERNAL_SERVER_ERROR, msgId, TechnicalMessage.INTERNAL_ERROR,
+                        HttpStatus.INTERNAL_SERVER_ERROR, TechnicalMessage.INTERNAL_ERROR,
                         List.of(ErrorDto.builder().code(TechnicalMessage.INTERNAL_ERROR.getCode()).message(TechnicalMessage.INTERNAL_ERROR.getMessage()).build())
                 ));
     }

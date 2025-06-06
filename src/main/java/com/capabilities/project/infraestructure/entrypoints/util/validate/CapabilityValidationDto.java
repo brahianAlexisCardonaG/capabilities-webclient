@@ -12,6 +12,15 @@ import java.util.Set;
 
 @Component
 public class CapabilityValidationDto {
+
+    public Mono<CapabilityDto> validateFieldNotNullOrBlank(CapabilityDto dto) {
+        if (dto.getDescription() == null || dto.getName() == null  || dto.getTechnologyIds().isEmpty()) {
+            return Mono.error(new BusinessException(TechnicalMessage.INVALID_PARAMETERS));
+        }
+        return Mono.just(dto);
+    }
+
+
     public Mono<CapabilityDto> validateLengthWords(CapabilityDto dto) {
         if (dto.getName().length() > 50) {
             return Mono.error(new BusinessException(TechnicalMessage.NAME_TOO_LONG));

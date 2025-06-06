@@ -10,5 +10,4 @@ public interface TechnologyMapper {
     @Mapping(target = "capabilityName", source = "capabilityName")
     @Mapping(target = "name", source = "response.name")
     Technology toDomain(TechnologyResponse response, String capabilityName);
-
 }

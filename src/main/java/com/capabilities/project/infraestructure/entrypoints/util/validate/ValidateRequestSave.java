@@ -16,6 +16,7 @@ public class ValidateRequestSave {
                 .collectList()
                 .flatMap(capabilityValidationDto::validateNoDuplicateNames)
                 .flatMapMany(Flux::fromIterable)
-                .flatMap(capabilityValidationDto::validateLengthWords);
+                .flatMap(capabilityValidationDto::validateLengthWords)
+                .flatMap(capabilityValidationDto::validateFieldNotNullOrBlank);
     }
 }

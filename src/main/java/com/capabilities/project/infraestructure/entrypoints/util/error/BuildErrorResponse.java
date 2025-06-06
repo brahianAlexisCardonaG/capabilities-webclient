@@ -1,7 +1,7 @@
 package com.capabilities.project.infraestructure.entrypoints.util.error;
 
 import com.capabilities.project.domain.enums.TechnicalMessage;
-import com.capabilities.project.infraestructure.entrypoints.util.ApiResponse;
+import com.capabilities.project.infraestructure.entrypoints.util.response.ApiResponseBase;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -15,14 +15,13 @@ import static com.capabilities.project.infraestructure.entrypoints.util.Constant
 
 @Component
 public class BuildErrorResponse {
-    public Mono<ServerResponse> buildErrorResponse(HttpStatus httpStatus, String identifier, TechnicalMessage error,
+    public Mono<ServerResponse> buildErrorResponse(HttpStatus httpStatus, TechnicalMessage error,
                                                     List<ErrorDto> errors) {
         return Mono.defer(() -> {
-            ApiResponse apiErrorResponse = ApiResponse
+            ApiResponseBase apiErrorResponse = ApiResponseBase
                     .builder()
                     .code(error.getCode())
                     .message(error.getMessage())
-                    .identifier(identifier)
                     .date(Instant.now().toString())
                     .errors(errors)
                     .build();

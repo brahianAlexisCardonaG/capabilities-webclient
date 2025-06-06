@@ -4,14 +4,12 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder
-public class TechnologyCapabilityResponse {
+public class ApiCapabilityTechnologyResponseList {
     private String code;
     private String message;
-    private String identifier;
     private String date;
-    private Map<String, List<TechnologyResponse>> data;
+    List<CapabilityListTechnologyResponse> data;
 }

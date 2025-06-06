@@ -25,4 +25,11 @@ public class BootcampCapabilityValidation {
 
         return Mono.just(bootcampCapabilityDto);
     }
+
+    public Mono<BootcampCapabilityDto> validateFieldNotNullOrBlank(BootcampCapabilityDto dto) {
+        if (dto.getBootcampId() == null || dto.getCapabilityIds() == null || dto.getCapabilityIds().isEmpty()) {
+            return Mono.error(new BusinessException(TechnicalMessage.INVALID_PARAMETERS));
+        }
+        return Mono.just(dto);
+    }
 }

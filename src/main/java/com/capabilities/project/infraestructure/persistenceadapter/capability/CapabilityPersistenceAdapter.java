@@ -4,7 +4,6 @@ import com.capabilities.project.domain.model.Capability;
 import com.capabilities.project.domain.spi.CapabilityPersistencePort;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.mapper.CapabilityEntityMapper;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.repository.CapabilityRespository;
-import com.capabilities.project.infraestructure.persistenceadapter.bootcampcapability.repository.BootcampCapabilityRepository;
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -27,11 +26,9 @@ public class CapabilityPersistenceAdapter implements CapabilityPersistencePort {
 
     @Override
     public Mono<List<Capability>> findByAllIds(List<Long> ids) {
-        return Flux.fromIterable(ids)
-                .collectList() // opcional, si ids ya viene como lista
-                .flatMapMany(capabilityRespository::findAllById)// devuelve Flux<Capability>
+        return capabilityRespository.findAllById(ids)
                 .map(capabilityEntityMapper::toModel)
-                .collectList(); // convierte Flux<Capability> en Mono<List<Capability>>
+                .collectList();
     }
 
     @Override
@@ -40,6 +37,20 @@ public class CapabilityPersistenceAdapter implements CapabilityPersistencePort {
                 .map(capabilityEntityMapper::toModel)
                 .map(tech -> true)
                 .defaultIfEmpty(false);
+    }
+
+    @Override
+    public Flux<Capability> findByIds(List<Long> capabilityIds) {
+        return capabilityRespository.findAllById(capabilityIds)
+                .map(capabilityEntityMapper::toModel);
+    }
+
+    @Override
+    public Mono<Void> deleteCapabilities(List<Long> capabilityIds) {
+        return capabilityRespository.findAllById(capabilityIds)
+                .collectList()
+                .flatMapMany(capabilityRespository::deleteAll)
+                .then();
     }
 
     @Override

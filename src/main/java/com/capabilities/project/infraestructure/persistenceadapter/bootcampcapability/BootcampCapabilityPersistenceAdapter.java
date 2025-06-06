@@ -38,7 +38,7 @@ public class BootcampCapabilityPersistenceAdapter implements BootcampCapabilityP
     @Override
     public Mono<List<Capability>> findCapabilitiesListByBootcamp(Long bootcampId) {
         return bootcampCapabilityRepository.findByIdBootcamp(bootcampId)
-                .map(BootcampCapabilityEntity::getIdBootcamp)
+                .map(BootcampCapabilityEntity::getIdCapability)
                 .collectList()
                 .flatMap(capIds ->
                         capabilityRespository.findAllById(capIds)
@@ -51,5 +51,19 @@ public class BootcampCapabilityPersistenceAdapter implements BootcampCapabilityP
     public Mono<Boolean> existsBootcampById(Long bootcampId) {
         return bootcampCapabilityRepository.findByIdBootcamp(bootcampId)
                 .hasElements();
+    }
+
+    @Override
+    public Flux<Long> findBootcampsByCapabilitiesIds(List<Long> capabilityIds) {
+        return bootcampCapabilityRepository.findIdsBootcampsByCapabilityIds(capabilityIds);
+    }
+
+    @Override
+    public Mono<Void> deleteBootcampsCapabilities(List<Long> capabilityIds) {
+        return bootcampCapabilityRepository.findAll()
+                .filter(entity -> capabilityIds.contains(entity.getIdCapability()))
+                .collectList()
+                .flatMapMany(bootcampCapabilityRepository::deleteAll)
+                .then();
     }
 }

@@ -1,5 +1,4 @@
 package com.capabilities.project.infraestructure.persistenceadapter.webclients.response;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,9 +10,8 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class TechnologiesMessageResponse {
-    private String code;
-    private String message;
-    private String date;
-    List<TechnologyResponse> data;
+public class CapabilityListTechnologyResponse {
+    private Long id;
+    private String name;
+    private List<TechnologyResponse> technologies;
 }

@@ -11,9 +11,11 @@ import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class BootcampCapabilityUseCase implements BootcampCapabilityServicePort {
@@ -61,4 +63,17 @@ public class BootcampCapabilityUseCase implements BootcampCapabilityServicePort 
                 });
     }
 
+
+    @Override
+    public Mono<Void> deleteBootcampsCapabilities(List<Long> capabilityIds) {
+        return bootcampCapabilityPersistencePort.findBootcampsByCapabilitiesIds(capabilityIds)
+                .collect(Collectors.toSet())
+                .flatMap(bootcampIds -> {
+                    if (bootcampIds.size() > 1) {
+                        return Mono.error(new BusinessException(TechnicalMessage.BOOTCAMPS_CAPABILITIES_MORE_ONE_RELATE));
+                    }
+                    return bootcampCapabilityPersistencePort.deleteBootcampsCapabilities(capabilityIds)
+                            .then(capabilityPersistencePort.deleteCapabilities(capabilityIds));
+                });
+    }
 }

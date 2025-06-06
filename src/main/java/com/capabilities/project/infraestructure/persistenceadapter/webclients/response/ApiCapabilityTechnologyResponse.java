@@ -6,14 +6,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class TechnologiesMessageResponse {
+public class ApiCapabilityTechnologyResponse {
     private String code;
     private String message;
     private String date;
-    List<TechnologyResponse> data;
+    private Map<String, List<TechnologyResponse>> data;
 }

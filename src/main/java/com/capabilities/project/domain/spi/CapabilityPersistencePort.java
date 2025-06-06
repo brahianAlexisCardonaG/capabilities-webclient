@@ -11,4 +11,6 @@ public interface CapabilityPersistencePort {
     Mono<Boolean> findByName(String name);
     Mono<List<Capability>> findByAllIds(List<Long> ids);
     Mono<Boolean> existsById(Long capabilityId);
+    Flux<Capability> findByIds(List<Long> capabilityIds);
+    Mono<Void> deleteCapabilities(List<Long> capabilityIds);
 }

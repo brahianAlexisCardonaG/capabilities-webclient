@@ -1,39 +1,41 @@
 package com.capabilities.project.domain.usecase.capability.util;
 
-import com.capabilities.project.domain.model.client.technology.Technology;
+import com.capabilities.project.domain.model.client.technology.CapabilityListTechnology;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class CapabilityOrder {
-    public static Map<String, List<Technology>> sort(Map<String, List<Technology>> unsortedMap, String order) {
-        Comparator<Map.Entry<String, List<Technology>>> comparator;
+
+    public static List<CapabilityListTechnology> sortList(
+            List<CapabilityListTechnology> unsortedList,
+            String order) {
+
+        Comparator<CapabilityListTechnology> comparator;
 
         if (order != null && order.equalsIgnoreCase("tech")) {
-            // Ordenar descendente por cantidad de tecnologías
+            // Orden descendente por cantidad de tecnologías
             comparator = Comparator.comparingInt(
-                    (Map.Entry<String, List<Technology>> e) -> e.getValue().size()
+                    (CapabilityListTechnology c) -> c.getTechnologies().size()
             ).reversed();
-        } else if (order != null && order.equalsIgnoreCase("desc")) {
-            // Ordenar descendente alfabéticamente por el nombre
+        }
+        else if (order != null && order.equalsIgnoreCase("desc")) {
+            // Orden descendente alfabéticamente por nombre de la capacidad
             comparator = Comparator.comparing(
-                    (Map.Entry<String, List<Technology>> e) -> e.getKey(),
+                    CapabilityListTechnology::getName,
                     Comparator.reverseOrder()
             );
-        } else {
-            // Orden ascendente (por defecto) por el nombre
+        }
+        else {
+            // Orden ascendente (por defecto) alfabéticamente por nombre de la capacidad
             comparator = Comparator.comparing(
-                    (Map.Entry<String, List<Technology>> e) -> e.getKey()
+                    CapabilityListTechnology::getName
             );
         }
 
-        return unsortedMap.entrySet().stream()
+        return unsortedList.stream()
                 .sorted(comparator)
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (existing, replacement) -> existing,
-                        LinkedHashMap::new  // Mantener el orden definido
-                ));
+                .collect(Collectors.toList());
     }
+
 }
