@@ -11,7 +11,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class TechnologiesMessageResponse {
+public class ApiTechnologyMessageResponse {
     private String code;
     private String message;
     private String date;
