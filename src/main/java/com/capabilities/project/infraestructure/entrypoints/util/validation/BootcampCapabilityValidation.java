@@ -1,4 +1,4 @@
-package com.capabilities.project.infraestructure.entrypoints.util.validate;
+package com.capabilities.project.infraestructure.entrypoints.util.validation;
 
 import com.capabilities.project.domain.enums.TechnicalMessage;
 import com.capabilities.project.domain.exception.BusinessException;

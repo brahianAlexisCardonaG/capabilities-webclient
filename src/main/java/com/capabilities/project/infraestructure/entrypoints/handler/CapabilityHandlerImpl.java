@@ -3,19 +3,18 @@ package com.capabilities.project.infraestructure.entrypoints.handler;
 import com.capabilities.project.domain.api.BootcampCapabilityServicePort;
 import com.capabilities.project.domain.api.CapabilityServicePort;
 import com.capabilities.project.domain.enums.TechnicalMessage;
-import com.capabilities.project.domain.exception.BusinessException;
 import com.capabilities.project.infraestructure.entrypoints.dto.BootcampCapabilityDto;
 import com.capabilities.project.infraestructure.entrypoints.dto.CapabilityDto;
 import com.capabilities.project.infraestructure.entrypoints.mapper.CapabilityMapper;
+import com.capabilities.project.infraestructure.entrypoints.mapper.CapabilityMapperResponse;
 import com.capabilities.project.infraestructure.entrypoints.util.response.ApiResponseBase;
 import com.capabilities.project.infraestructure.entrypoints.util.response.ApiResponseBaseMap;
 import com.capabilities.project.infraestructure.entrypoints.util.error.ApplyErrorHandler;
-import com.capabilities.project.infraestructure.entrypoints.util.response.BootcampListIdResponse;
-import com.capabilities.project.infraestructure.entrypoints.util.validate.BootcampCapabilityValidation;
-import com.capabilities.project.infraestructure.entrypoints.util.validate.ValidateRequestSave;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.mapper.CapabilityTechnologyMapperResponse;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.ApiCapabilityTechnologyResponseList;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.CapabilityListTechnologyResponse;
+import com.capabilities.project.infraestructure.entrypoints.util.response.capability.CapabilityResponse;
+import com.capabilities.project.infraestructure.entrypoints.util.validation.BootcampCapabilityValidation;
+import com.capabilities.project.infraestructure.entrypoints.util.validation.ValidateRequestSave;
+import com.capabilities.project.infraestructure.entrypoints.util.response.capability.ApiCapabilityTechnologyResponseList;
+import com.capabilities.project.infraestructure.entrypoints.util.response.capability.CapabilityListTechnologyResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -46,7 +45,7 @@ public class CapabilityHandlerImpl {
     private final ApplyErrorHandler applyErrorHandler;
     private final BootcampCapabilityValidation bootcampCapabilityValidation;
     private final BootcampCapabilityServicePort bootcampCapabilityServicePort;
-    private final CapabilityTechnologyMapperResponse capabilityTechnologyMapperResponse;
+    private final CapabilityMapperResponse capabilityMapperResponse;
 
     public Mono<ServerResponse> getTechnologiesByCapabilitiesIds(ServerRequest request) {
         List<Long> ids = request.queryParams().getOrDefault("capabilityIds", List.of()).stream()
@@ -61,7 +60,7 @@ public class CapabilityHandlerImpl {
                 .flatMap(listData -> {
 
                     List<CapabilityListTechnologyResponse> responseList = listData.stream()
-                            .map(capabilityTechnologyMapperResponse::toCapabilityListTechnologiesResponse)
+                            .map(capabilityMapperResponse::toCapabilityListTechnologiesResponse)
                             .toList();
 
                     return ServerResponse.ok()
@@ -83,22 +82,21 @@ public class CapabilityHandlerImpl {
 
         Mono<ServerResponse> response = validateRequestSave.validateAndMapRequest(request)
                 .map(capabilityMapper::toCapability)
-                .transform(capabilityServicePort::saveCapabilityTechnology)
+                .collectList()
+                .flatMap(capabilityServicePort::saveCapabilityTechnology)
                 .map(list -> list.stream()
-                        .map(capabilityTechnologyMapperResponse::toCapabilityListTechnologiesResponse)
+                        .map(capabilityMapperResponse::toCapabilityListTechnologiesResponse)
                         .toList())
-                .flatMap(ct -> {
-                    return ServerResponse.status(HttpStatus.CREATED)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .bodyValue(ApiCapabilityTechnologyResponseList.builder()
-                                    .code(TechnicalMessage.CAPABILITY_TECHNOLOGY_RELATION.getCode())
-                                    .message(TechnicalMessage.CAPABILITY_TECHNOLOGY_RELATION.getMessage())
-                                    .date(Instant.now().toString())
-                                    .data(ct)
-                                    .build());
-                })
+                .flatMap(ct -> ServerResponse.status(HttpStatus.CREATED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(ApiCapabilityTechnologyResponseList.builder()
+                                .code(TechnicalMessage.CAPABILITY_TECHNOLOGY_RELATION.getCode())
+                                .message(TechnicalMessage.CAPABILITY_TECHNOLOGY_RELATION.getMessage())
+                                .date(Instant.now().toString())
+                                .data(ct)
+                                .build()))
                 .contextWrite(Context.of(X_MESSAGE_ID, ""))
-                .doOnError(ex -> log.error(CAPABILITY_ERROR, ex)).next();
+                .doOnError(ex -> log.error(CAPABILITY_ERROR, ex));
 
         return applyErrorHandler.applyErrorHandling(response);
     }
@@ -107,12 +105,7 @@ public class CapabilityHandlerImpl {
         Mono<ServerResponse> response = request.bodyToMono(BootcampCapabilityDto.class)
                 .flatMap(bootcampCapabilityValidation::validateDuplicateIds)
                 .flatMap(bootcampCapabilityValidation::validateFieldNotNullOrBlank)
-                .flatMap(dto -> {
-                    if (dto.getBootcampId() == null || dto.getCapabilityIds() == null || dto.getCapabilityIds().isEmpty()) {
-                        return Mono.error(new BusinessException(TechnicalMessage.INVALID_PARAMETERS));
-                    }
-                    return bootcampCapabilityServicePort.saveBootcampCapabilities(dto.getBootcampId(), dto.getCapabilityIds());
-                })
+                .flatMap(dto -> bootcampCapabilityServicePort.saveBootcampCapabilities(dto.getBootcampId(), dto.getCapabilityIds()))
                 .then(ServerResponse.status(HttpStatus.CREATED)
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(ApiResponseBase.builder()
@@ -138,8 +131,8 @@ public class CapabilityHandlerImpl {
                 .flatMap(bootcampId ->
                         bootcampCapabilityServicePort.findCapabilitiesByBootcamp(bootcampId)
                                 .map(capList -> {
-                                    List<CapabilityDto> dtoList = capList.stream()
-                                            .map(capabilityMapper::toCapabilityDto)
+                                    List<CapabilityResponse> dtoList = capList.stream()
+                                            .map(capabilityMapperResponse::toCapabilityResponse)
                                             .toList();
                                     return Map.entry(bootcampId, dtoList);
                                 })
@@ -171,7 +164,8 @@ public class CapabilityHandlerImpl {
                 .toList();
 
         Mono<ServerResponse> response = capabilityServicePort.getCapabilityByIds(technologyIds)
-                .map(capabilityMapper::toCapabilityDto)
+                .flatMapMany(Flux::fromIterable)
+                .map(capabilityMapperResponse::toCapabilityResponse)
                 .collectList()
                 .flatMap(techList -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)

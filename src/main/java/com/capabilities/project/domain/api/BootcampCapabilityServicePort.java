@@ -1,6 +1,6 @@
 package com.capabilities.project.domain.api;
 
-import com.capabilities.project.domain.model.Capability;
+import com.capabilities.project.domain.model.capability.Capability;
 import reactor.core.publisher.Mono;
 
 import java.util.List;

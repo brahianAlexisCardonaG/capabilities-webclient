@@ -1,7 +1,7 @@
 package com.capabilities.project.domain.api;
 
-import com.capabilities.project.domain.model.Capability;
-import com.capabilities.project.domain.model.client.technology.CapabilityListTechnology;
+import com.capabilities.project.domain.model.capability.Capability;
+import com.capabilities.project.domain.model.capability.CapabilityListTechnology;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface CapabilityServicePort {
 
-    Mono<List<CapabilityListTechnology>> saveCapabilityTechnology(Flux<Capability> capabilityFlux);
+    Mono<List<CapabilityListTechnology>> saveCapabilityTechnology(List<Capability> capabilityList);
 
 
     Mono<List<CapabilityListTechnology>> findTechnologiesByIdCapabilitiesModel(
@@ -18,5 +18,5 @@ public interface CapabilityServicePort {
             int skip,
             int rows);
 
-    Flux<Capability> getCapabilityByIds(List<Long> capabilityIds);
+    Mono<List<Capability>> getCapabilityByIds(List<Long> capabilityIds);
 }

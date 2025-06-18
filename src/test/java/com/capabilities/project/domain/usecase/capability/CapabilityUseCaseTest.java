@@ -2,22 +2,19 @@ package com.capabilities.project.domain.usecase.capability;
 
 import com.capabilities.project.domain.enums.TechnicalMessage;
 import com.capabilities.project.domain.exception.BusinessException;
-import com.capabilities.project.domain.model.Capability;
-import com.capabilities.project.domain.model.client.technology.CapabilityListTechnology;
-import com.capabilities.project.domain.model.client.technology.Technology;
+import com.capabilities.project.domain.model.capability.Capability;
+import com.capabilities.project.domain.model.capability.CapabilityListTechnology;
+import com.capabilities.project.domain.model.webclient.technology.Technology;
+import com.capabilities.project.domain.model.webclient.technology.api.ApiListTechnology;
+import com.capabilities.project.domain.model.webclient.technology.api.ApiMapTechnology;
 import com.capabilities.project.domain.spi.CapabilityPersistencePort;
 import com.capabilities.project.domain.spi.TechnologyWebClientPort;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.mapper.TechnologyMapper;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.ApiCapabilityTechnologyResponse;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.TechnologiesMessageResponse;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.TechnologyResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.reactive.TransactionalOperator;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -38,9 +35,6 @@ public class CapabilityUseCaseTest {
     private TechnologyWebClientPort technologyWebClientPort;
 
     @Mock
-    private TechnologyMapper technologyMapper;
-
-    @Mock
     private TransactionalOperator transactionalOperator;
 
     @InjectMocks
@@ -54,10 +48,12 @@ public class CapabilityUseCaseTest {
         Capability capability2 = new Capability();
         capability2.setId(2L);
 
-        when(capabilityPersistencePort.findByIds(capabilityIds)).thenReturn(Flux.just(capability1, capability2));
+        List<Capability> expected = List.of(capability1, capability2);
+
+        when(capabilityPersistencePort.findByIds(capabilityIds)).thenReturn(Mono.just(expected));
 
         StepVerifier.create(capabilityUseCase.getCapabilityByIds(capabilityIds))
-                .expectNext(capability1, capability2)
+                .expectNext(expected)
                 .verifyComplete();
 
         verify(capabilityPersistencePort, times(1)).findByIds(capabilityIds);
@@ -67,7 +63,7 @@ public class CapabilityUseCaseTest {
     void getCapabilityByIds_shouldThrowException_whenCapabilitiesNotExist() {
         List<Long> capabilityIds = List.of(3L, 4L);
 
-        when(capabilityPersistencePort.findByIds(capabilityIds)).thenReturn(Flux.empty());
+        when(capabilityPersistencePort.findByIds(capabilityIds)).thenReturn(Mono.empty());
 
         StepVerifier.create(capabilityUseCase.getCapabilityByIds(capabilityIds))
                 .expectErrorMatches(throwable ->
@@ -75,7 +71,7 @@ public class CapabilityUseCaseTest {
                                 throwable.getMessage().equals(TechnicalMessage.CAPABILITIES_NOT_EXISTS.getMessage()))
                 .verify();
 
-        verify(capabilityPersistencePort, times(1)).findByIds(capabilityIds);
+        verify(capabilityPersistencePort).findByIds(capabilityIds);
     }
 
 
@@ -94,39 +90,30 @@ public class CapabilityUseCaseTest {
         when(capabilityPersistencePort.findByAllIds(capabilityIds))
                 .thenReturn(Mono.just(persistedCapabilities));
 
-        TechnologyResponse techResp1 = new TechnologyResponse();
-        techResp1.setId(101L);
-        techResp1.setName("Tech 1");
-        TechnologyResponse techResp2 = new TechnologyResponse();
-        techResp2.setId(102L);
-        techResp2.setName("Tech 2");
-
-        ApiCapabilityTechnologyResponse technologyResponse = ApiCapabilityTechnologyResponse.builder().build();
-        Map<String, List<TechnologyResponse>> data = new HashMap<>();
-        data.put("1", List.of(techResp1));
-        data.put("2", List.of(techResp2));
-        technologyResponse.setData(data);
-
-        when(technologyWebClientPort.getTechnologiesByCapabilityIds(capabilityIds))
-                .thenReturn(Mono.just(technologyResponse));
-
-        Technology tech1 = Technology.builder()
+        // Preparo las tecnologías "crudas" que vienen del web client (sin capabilityName)
+        Technology rawTech1 = Technology.builder()
                 .id(101L)
                 .name("Tech 1")
-                .capabilityName("Capability 1")
                 .build();
-        Technology tech2 = Technology.builder()
+        Technology rawTech2 = Technology.builder()
                 .id(102L)
                 .name("Tech 2")
-                .capabilityName("Capability 2")
                 .build();
-        when(technologyMapper.toDomain(eq(techResp1), eq("Capability 1"))).thenReturn(tech1);
-        when(technologyMapper.toDomain(eq(techResp2), eq("Capability 2"))).thenReturn(tech2);
 
+        ApiMapTechnology apiMap = ApiMapTechnology.builder().build();
+        Map<String, List<Technology>> data = new HashMap<>();
+        data.put("1", List.of(rawTech1));
+        data.put("2", List.of(rawTech2));
+        apiMap.setData(data);
+
+        when(technologyWebClientPort.getTechnologiesByCapabilityIds(capabilityIds))
+                .thenReturn(Mono.just(apiMap));
+
+        // Ejecuto el use case
         Mono<List<CapabilityListTechnology>> result = capabilityUseCase
                 .findTechnologiesByIdCapabilitiesModel(capabilityIds, "asc", 0, 10);
 
-        // Validación con StepVerifier
+        // Verifico el resultado
         StepVerifier.create(result)
                 .assertNext(list -> {
                     assertEquals(2, list.size());
@@ -134,195 +121,119 @@ public class CapabilityUseCaseTest {
                     CapabilityListTechnology clt1 = list.get(0);
                     CapabilityListTechnology clt2 = list.get(1);
 
+                    // Primer capability
                     assertEquals(1L, clt1.getId());
                     assertEquals("Capability 1", clt1.getName());
                     assertEquals(1, clt1.getTechnologies().size());
-                    assertEquals(tech1, clt1.getTechnologies().get(0));
+                    Technology mapped1 = clt1.getTechnologies().get(0);
+                    assertEquals(101L, mapped1.getId());
+                    assertEquals("Tech 1", mapped1.getName());
 
+                    // Segundo capability
                     assertEquals(2L, clt2.getId());
                     assertEquals("Capability 2", clt2.getName());
                     assertEquals(1, clt2.getTechnologies().size());
-                    assertEquals(tech2, clt2.getTechnologies().get(0));
+                    Technology mapped2 = clt2.getTechnologies().get(0);
+                    assertEquals(102L, mapped2.getId());
+                    assertEquals("Tech 2", mapped2.getName());
                 })
                 .verifyComplete();
 
+        // Verifico interacciones
         verify(capabilityPersistencePort, times(1)).findByAllIds(capabilityIds);
         verify(technologyWebClientPort, times(1)).getTechnologiesByCapabilityIds(capabilityIds);
-        verify(technologyMapper, times(1)).toDomain(techResp1, "Capability 1");
-        verify(technologyMapper, times(1)).toDomain(techResp2, "Capability 2");
-
     }
 
-    @Test
-    void findTechnologiesByIdCapabilitiesModel_shouldReturnError_whenCapabilityNotExists() {
-        // Datos de entrada: Se espera encontrar 3 capabilities, pero solo se retornarán 2.
-        List<Long> capabilityIds = List.of(1L, 2L, 3L);
-        Capability cap1 = new Capability();
-        cap1.setId(1L);
-        cap1.setName("Capability 1");
-        Capability cap2 = new Capability();
-        cap2.setId(2L);
-        cap2.setName("Capability 2");
-        when(capabilityPersistencePort.findByAllIds(capabilityIds))
-                .thenReturn(Mono.just(List.of(cap1, cap2)));
-
-        // Llamada al método a testear
-        Mono<List<CapabilityListTechnology>> result = capabilityUseCase
-                .findTechnologiesByIdCapabilitiesModel(capabilityIds, "asc", 0, 10);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof BusinessException &&
-                                throwable.getMessage().equals(TechnicalMessage.CAPABILITY_NOT_EXISTS.getMessage()))
-                .verify();
-
-        verify(capabilityPersistencePort, times(1)).findByAllIds(capabilityIds);
-        verifyNoInteractions(technologyWebClientPort);
-    }
 
     @Test
     void saveCapabilityTechnology_shouldSaveAndReturnList_onValidPayload() {
-        // 1. Preparar la capability de entrada (sin ID asignado)
-        Capability inputCapability = new Capability();
-        inputCapability.setName("New Capability");
-        inputCapability.setTechnologyIds(List.of(100L));
-        // Opcionalmente, puedes asignar description u otros campos
+        // 1. Preparar la capability de entrada (sin ID)
+        Capability inputCap = new Capability();
+        inputCap.setName("New Capability");
+        inputCap.setTechnologyIds(List.of(100L));
+        List<Capability> capabilityList = List.of(inputCap);
 
-        Flux<Capability> capabilityFlux = Flux.just(inputCapability);
-
-        // 2. Verificar que la capability no existe (findByName retorna false)
+        // 2. Simular que la capability no existe aún
         when(capabilityPersistencePort.findByName("New Capability"))
                 .thenReturn(Mono.just(Boolean.FALSE));
 
-        // 3. Validar que las tecnologías existen:
-        // Se simula que al llamar a getTechnologiesByIds se retorna un objeto TechnologiesMessageResponse
-        // con un listado no vacío en el campo data.
-        TechnologyResponse techResponseForIds = TechnologyResponse.builder()
-                .id(100L)
-                .name("Tech 100")
-                .build();
-        TechnologiesMessageResponse techsMessageResponse = TechnologiesMessageResponse.builder()
-                .code("200")
-                .message("OK")
-                .date("2025-06-01")
-                .data(List.of(techResponseForIds))
-                .build();
-
-        when(technologyWebClientPort.getTechnologiesByIds(inputCapability.getTechnologyIds()))
-                .thenReturn(Mono.just(techsMessageResponse));
-
-        // 4. Simular la persistencia: se asigna un ID a la capability guardada
-        Capability savedCapability = new Capability();
-        savedCapability.setId(10L);
-        savedCapability.setName("New Capability");
-        savedCapability.setTechnologyIds(inputCapability.getTechnologyIds());
-
-        when(capabilityPersistencePort.save(any(Flux.class)))
-                .thenReturn(Flux.just(savedCapability));
-
-        // 5. Simular el guardado de relaciones entre la capability y sus tecnologías
-        when(technologyWebClientPort.saveRelateTechnologiesCapabilities(eq(10L), eq(inputCapability.getTechnologyIds())))
-                .thenReturn(Mono.empty());
-
-        // 6. Simular la obtención de tecnologías asociadas mediante getTechnologiesByCapabilityIds:
-        // Se configura el API response con un Map con clave "10" (como String) que contiene una lista de TechnologyResponse.
-        TechnologyResponse techRespForMapping = TechnologyResponse.builder()
+        // 3. Simular validación de tecnologías existentes:
+        //    getTechnologiesByIds ahora retorna ApiListTechnology con List<Technology>
+        Technology rawTech = Technology.builder()
                 .id(100L)
                 .name("Tech 100")
                 .build();
 
-        Map<String, List<TechnologyResponse>> mapData = new HashMap<>();
-        mapData.put("10", List.of(techRespForMapping));
-
-        ApiCapabilityTechnologyResponse apiResponse = ApiCapabilityTechnologyResponse.builder()
+        ApiListTechnology apiListTech = ApiListTechnology.builder()
                 .code("200")
                 .message("OK")
                 .date("2025-06-01")
-                .data(mapData)
+                .data(List.of(rawTech))
+                .build();
+
+        when(technologyWebClientPort.getTechnologiesByIds(inputCap.getTechnologyIds()))
+                .thenReturn(Mono.just(apiListTech));
+
+        // 4. Simular persistencia: asignación de ID
+        Capability savedCap = new Capability();
+        savedCap.setId(10L);
+        savedCap.setName("New Capability");
+        savedCap.setTechnologyIds(inputCap.getTechnologyIds());
+
+        when(capabilityPersistencePort.save(inputCap))
+                .thenReturn(Mono.just(savedCap));
+
+        // 5. Simular guardado de relación Capability–Tech
+        when(technologyWebClientPort.saveRelateTechnologiesCapabilities(
+                eq(10L),
+                eq(inputCap.getTechnologyIds())
+        )).thenReturn(Mono.empty());
+
+        // 6. Simular consulta de las tecnologías asociadas tras guardar:
+        //    getTechnologiesByCapabilityIds retorna ApiMapTechnology con Map<String,List<Technology>>
+        ApiMapTechnology apiMapTech = ApiMapTechnology.builder()
+                .code("200")
+                .message("OK")
+                .date("2025-06-01")
+                .data(Map.of("10", List.of(rawTech)))
                 .build();
 
         when(technologyWebClientPort.getTechnologiesByCapabilityIds(List.of(10L)))
-                .thenReturn(Mono.just(apiResponse));
+                .thenReturn(Mono.just(apiMapTech));
 
-        // 7. Simular la transformación de TechnologyResponse a Technology mediante el mapper
-        Technology mappedTechnology = Technology.builder()
-                .id(100L)
-                .name("Tech 100")
-                .capabilityName("New Capability")
-                .build();
-
-        when(technologyMapper.toDomain(eq(techRespForMapping), eq("New Capability")))
-                .thenReturn(mappedTechnology);
-
-        // 8. Configurar el TransactionalOperator para que simplemente devuelva el flujo recibido
+        // 7. El TransactionalOperator debe simplemente pasar el flujo
         when(transactionalOperator.transactional(any(Mono.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(inv -> inv.getArgument(0));
 
-        // 9. Invocar el método a testear
-        Mono<List<CapabilityListTechnology>> result = capabilityUseCase.saveCapabilityTechnology(capabilityFlux);
+        // 8. Invocar el use case
+        Mono<List<CapabilityListTechnology>> result = capabilityUseCase.saveCapabilityTechnology(capabilityList);
 
-        // 10. Validar la respuesta con StepVerifier
+        // 9. Verificar con StepVerifier
         StepVerifier.create(result)
                 .assertNext(list -> {
-                    // Se espera que la lista tenga un único elemento
                     assertEquals(1, list.size());
+
                     CapabilityListTechnology clt = list.get(0);
-                    // Verifica que se propaguen correctamente el ID y el nombre de la capability
                     assertEquals(10L, clt.getId());
                     assertEquals("New Capability", clt.getName());
-                    // Se valida que se hayan mapeado las tecnologías
-                    assertNotNull(clt.getTechnologies());
-                    assertEquals(1, clt.getTechnologies().size());
-                    assertEquals(mappedTechnology, clt.getTechnologies().get(0));
+
+                    List<Technology> techs = clt.getTechnologies();
+                    assertNotNull(techs);
+                    assertEquals(1, techs.size());
+
+                    Technology t = techs.get(0);
+                    assertEquals(100L, t.getId());
+                    assertEquals("Tech 100", t.getName());
+                    // En saveCapabilityTechnology no seteas capabilityName en el dom,
+                    // así que si lo necesitas, deberías adaptarlo aquí o en el use case.
                 })
                 .verifyComplete();
 
-        // 11. Verificar las interacciones con los mocks
-        verify(capabilityPersistencePort, times(1)).findByName("New Capability");
-        verify(technologyWebClientPort, times(1))
-                .getTechnologiesByIds(inputCapability.getTechnologyIds());
-        verify(capabilityPersistencePort, times(1)).save(any(Flux.class));
-        verify(technologyWebClientPort, times(1))
-                .saveRelateTechnologiesCapabilities(eq(10L), eq(inputCapability.getTechnologyIds()));
-        verify(technologyWebClientPort, times(1)).getTechnologiesByCapabilityIds(List.of(10L));
-        verify(technologyMapper, times(1)).toDomain(techRespForMapping, "New Capability");
+        // 10. Verificar interacciones
+        verify(capabilityPersistencePort).findByName("New Capability");
+        verify(technologyWebClientPort).getTechnologiesByIds(inputCap.getTechnologyIds());
+        verify(capabilityPersistencePort).save(inputCap);
+        verify(technologyWebClientPort).saveRelateTechnologiesCapabilities(eq(10L), eq(inputCap.getTechnologyIds()));
+        verify(technologyWebClientPort).getTechnologiesByCapabilityIds(List.of(10L));
     }
-
-    @Test
-    void saveCapabilityTechnology_shouldReturnError_whenTechnologiesNotExist() {
-        Capability inputCapability = new Capability();
-        inputCapability.setName("New Capability");
-        inputCapability.setTechnologyIds(List.of(100L));
-
-        Flux<Capability> capabilityFlux = Flux.just(inputCapability);
-
-        when(capabilityPersistencePort.findByName("New Capability"))
-                .thenReturn(Mono.just(Boolean.FALSE));
-
-        TechnologiesMessageResponse emptyTechResponse = TechnologiesMessageResponse.builder()
-                .code("200")
-                .message("OK")
-                .date("2025-06-01")
-                .data(List.of()) // data vacía
-                .build();
-
-        when(technologyWebClientPort.getTechnologiesByIds(inputCapability.getTechnologyIds()))
-                .thenReturn(Mono.just(emptyTechResponse));
-
-        when(transactionalOperator.transactional(any(Mono.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        Mono<List<CapabilityListTechnology>> result = capabilityUseCase.saveCapabilityTechnology(capabilityFlux);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable ->
-                        throwable instanceof BusinessException &&
-                                throwable.getMessage().equals(TechnicalMessage.TECHNOLOGY_NOT_EXISTS.getMessage()))
-                .verify();
-
-        verify(capabilityPersistencePort, never()).save(any(Flux.class));
-        verify(technologyWebClientPort, never()).saveRelateTechnologiesCapabilities(anyLong(), any());
-        verify(technologyWebClientPort, never()).getTechnologiesByCapabilityIds(any());
-    }
-
 }

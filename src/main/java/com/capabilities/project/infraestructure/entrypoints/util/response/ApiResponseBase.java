@@ -1,7 +1,7 @@
 package com.capabilities.project.infraestructure.entrypoints.util.response;
 
-import com.capabilities.project.infraestructure.entrypoints.dto.CapabilityDto;
 import com.capabilities.project.infraestructure.entrypoints.util.error.ErrorDto;
+import com.capabilities.project.infraestructure.entrypoints.util.response.capability.CapabilityResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
@@ -17,6 +17,6 @@ public class ApiResponseBase {
     private String code;
     private String message;
     private String date;
-    private List<CapabilityDto> data;
+    private List<CapabilityResponse> data;
     private List<ErrorDto> errors;
 }

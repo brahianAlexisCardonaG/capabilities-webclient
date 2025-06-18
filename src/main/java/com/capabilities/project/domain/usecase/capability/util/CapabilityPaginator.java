@@ -1,6 +1,6 @@
 package com.capabilities.project.domain.usecase.capability.util;
 
-import com.capabilities.project.domain.model.client.technology.CapabilityListTechnology;
+import com.capabilities.project.domain.model.capability.CapabilityListTechnology;
 
 import java.util.*;
 

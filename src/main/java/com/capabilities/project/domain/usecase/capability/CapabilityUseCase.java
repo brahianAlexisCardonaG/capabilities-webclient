@@ -3,14 +3,13 @@ package com.capabilities.project.domain.usecase.capability;
 import com.capabilities.project.domain.api.CapabilityServicePort;
 import com.capabilities.project.domain.enums.TechnicalMessage;
 import com.capabilities.project.domain.exception.BusinessException;
-import com.capabilities.project.domain.model.Capability;
-import com.capabilities.project.domain.model.client.technology.CapabilityListTechnology;
-import com.capabilities.project.domain.model.client.technology.Technology;
+import com.capabilities.project.domain.model.capability.Capability;
+import com.capabilities.project.domain.model.capability.CapabilityListTechnology;
+import com.capabilities.project.domain.model.webclient.technology.Technology;
 import com.capabilities.project.domain.spi.CapabilityPersistencePort;
 import com.capabilities.project.domain.spi.TechnologyWebClientPort;
 import com.capabilities.project.domain.usecase.capability.util.CapabilityOrder;
 import com.capabilities.project.domain.usecase.capability.util.CapabilityPaginator;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.mapper.TechnologyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
@@ -24,14 +23,13 @@ public class CapabilityUseCase implements CapabilityServicePort {
 
     private final CapabilityPersistencePort capabilityPersistencePort;
     private final TechnologyWebClientPort technologyWebClientPort;
-    private final TechnologyMapper technologyMapper;
     private final TransactionalOperator transactionalOperator;
 
 
     @Override
-    public Mono<List<CapabilityListTechnology>> saveCapabilityTechnology(Flux<Capability> capabilityFlux) {
+    public Mono<List<CapabilityListTechnology>> saveCapabilityTechnology(List<Capability> capabilityList) {
         return transactionalOperator.transactional(
-                capabilityFlux
+                Flux.fromIterable(capabilityList)
                         .flatMap(capability ->
                                 // 1) Validar que la capability no exista por nombre
                                 capabilityPersistencePort.findByName(capability.getName())
@@ -41,32 +39,28 @@ public class CapabilityUseCase implements CapabilityServicePort {
                                             }
                                             return Mono.just(capability);
                                         })
-                                        // 2) Validar que las tecnologías existan (mediante el WebClient)
-                                        .flatMap(validCapability ->
-                                                technologyWebClientPort.getTechnologiesByIds(validCapability.getTechnologyIds())
-                                                        .flatMap(response -> {
-                                                            if (response == null || response.getData() == null || response.getData().isEmpty()) {
-                                                                return Mono.error(new BusinessException(TechnicalMessage.TECHNOLOGY_NOT_EXISTS));
-                                                            }
-                                                            return Mono.just(validCapability);
-                                                        })
-                                        )
-                                        // 3) Persistir la capability y guardar las relaciones de tecnologías
-                                        .flatMap(validCapability ->
-                                                capabilityPersistencePort
-                                                        .save(Flux.just(validCapability))
-                                                        .next()
-                                                        .flatMap(savedCapability ->
-                                                                technologyWebClientPort
-                                                                        .saveRelateTechnologiesCapabilities(
-                                                                                savedCapability.getId(),
-                                                                                validCapability.getTechnologyIds()
-                                                                        )
-                                                                        .thenReturn(savedCapability)
+                        )
+                        // 2) Validar que las tecnologías existan (mediante el WebClient)
+                        .flatMap(validCapability ->
+                                technologyWebClientPort.getTechnologiesByIds(validCapability.getTechnologyIds())
+                                        .flatMap(response -> {
+                                            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                                                return Mono.error(new BusinessException(TechnicalMessage.TECHNOLOGY_NOT_EXISTS));
+                                            }
+                                            return Mono.just(validCapability);
+                                        })
+                        )// 3) Persistir la capability y guardar las relaciones de tecnologías
+                        .flatMap(validCapability ->
+                                capabilityPersistencePort.save(validCapability)
+                                        .flatMap(savedCapability ->
+                                                technologyWebClientPort
+                                                        .saveRelateTechnologiesCapabilities(
+                                                                savedCapability.getId(),
+                                                                validCapability.getTechnologyIds()
                                                         )
+                                                        .thenReturn(savedCapability)
                                         )
                         )
-                        // Reunimos todas las capabilities ya guardadas
                         .collectList()
                         .flatMap(savedCapabilities -> {
                             // 4) Extraer los IDs y mapear ID → nombre
@@ -83,44 +77,29 @@ public class CapabilityUseCase implements CapabilityServicePort {
                             return technologyWebClientPort.getTechnologiesByCapabilityIds(savedIds)
                                     .flatMap(response -> {
                                         if (response == null || response.getData() == null) {
-                                            return Mono.error(new RuntimeException("Technology response o data es null"));
+                                            return Mono.error(new BusinessException(TechnicalMessage.TECHNOLOGY_NOT_EXISTS));
                                         }
 
-                                        // 6) Construir la lista de CapabilityListTechnologies
-                                        List<CapabilityListTechnology> listaSinOrdenar = response.getData().entrySet().stream()
-                                                .map(entry -> {
-                                                    Long capId = Long.valueOf(entry.getKey());
-                                                    String capName = idToName.get(capId);
-                                                    if (capName == null) {
-                                                        throw new RuntimeException("Capability no existe en BD: " + capId);
-                                                    }
+                                        Map<String, List<Technology>> dataMap = response.getData();
 
-                                                    // Convertir cada DTO a domain model Technology
-                                                    List<Technology> techsDomain = entry.getValue().stream()
-                                                            .map(dto -> technologyMapper.toDomain(dto, capName))
-                                                            .toList();
-
-                                                    return new CapabilityListTechnology(capId, capName, techsDomain);
+                                        // 6) Construir la lista de CapabilityListTechnology
+                                        List<CapabilityListTechnology> resultList = savedCapabilities.stream()
+                                                .map(savedCap -> {
+                                                    String key = String.valueOf(savedCap.getId());
+                                                    List<Technology> techsForCap = dataMap.getOrDefault(key, List.of());
+                                                    return CapabilityListTechnology.builder()
+                                                            .id(savedCap.getId())
+                                                            .name(savedCap.getName())
+                                                            .technologies(techsForCap)
+                                                            .build();
                                                 })
                                                 .toList();
 
-                                        // 7) Ordenar según el parámetro 'order' (por defecto asc)
-                                        List<CapabilityListTechnology> listaOrdenada =
-                                                CapabilityOrder.sortList(listaSinOrdenar, "asc");
-
-                                        // 8) Paginación: [skip, skip+rows)
-                                        List<CapabilityListTechnology> listaPaginada = CapabilityPaginator.paginateList(
-                                                listaOrdenada,
-                                                0,
-                                                listaOrdenada.size()    // rows: tamaño completo
-                                        );
-
-                                        return Mono.just(listaPaginada);
+                                        return Mono.just(resultList);
                                     });
                         })
         );
     }
-
 
 
     @Override
@@ -143,46 +122,57 @@ public class CapabilityUseCase implements CapabilityServicePort {
                     return technologyWebClientPort.getTechnologiesByCapabilityIds(capabilityIds)
                             .flatMap(response -> {
                                 if (response == null || response.getData() == null) {
-                                    return Mono.error(new RuntimeException("Technology response o data es null"));
+                                    return Mono.error(new BusinessException(TechnicalMessage.TECHNOLOGY_NOT_EXISTS));
+                                }
+
+                                // Validación defensiva separada
+                                boolean missingCapabilities = response.getData().keySet().stream()
+                                        .map(Long::valueOf)
+                                        .anyMatch(id -> !capabilityNamesMap.containsKey(id));
+                                if (missingCapabilities) {
+                                    return Mono.error(new BusinessException(TechnicalMessage.CAPABILITIES_NOT_EXISTS));
                                 }
 
                                 // Construyo la lista inicial sin orden ni paginación
-                                List<CapabilityListTechnology> listaSinOrdenar = response.getData().entrySet().stream()
+                                List<CapabilityListTechnology> listWithoutOrder = response.getData().entrySet().stream()
                                         .map(entry -> {
                                             Long capId = Long.valueOf(entry.getKey());
                                             String capName = capabilityNamesMap.get(capId);
-                                            if (capName == null) {
-                                                throw new RuntimeException("Capability no existe en BD: " + capId);
-                                            }
 
-                                            // Cada elemento entry.getValue() es List<TechnologyDTO> del WebClient
-                                            // El mapper de WebClient ya convierte cada DTO a domain model Technology.
                                             List<Technology> techsDomain = entry.getValue().stream()
-                                                    .map(dto -> technologyMapper.toDomain(dto, capName))
+                                                    .map(dto -> Technology.builder()
+                                                            .id(dto.getId())
+                                                            .name(dto.getName())
+                                                            .build()
+                                                    )
                                                     .toList();
 
-                                            return new CapabilityListTechnology(capId, capName, techsDomain);
+                                            return CapabilityListTechnology.builder()
+                                                    .id(capId)
+                                                    .name(capName)
+                                                    .technologies(techsDomain)
+                                                    .build();
                                         })
                                         .toList();
 
                                 // 1) Ordenar según el parámetro `order`
-                                List<CapabilityListTechnology> listaOrdenada =
-                                        CapabilityOrder.sortList(listaSinOrdenar, order);
+                                List<CapabilityListTechnology> listOrder =
+                                        CapabilityOrder.sortList(listWithoutOrder, order);
 
                                 // 2) Paginación: extraer sublista de [skip, skip+rows)
-                                List<CapabilityListTechnology> listaPaginada = CapabilityPaginator.paginateList(
-                                        listaOrdenada,
+                                List<CapabilityListTechnology> listPaginate = CapabilityPaginator.paginateList(
+                                        listOrder,
                                         skip,
                                         rows
                                 );
 
-                                return Mono.just(listaPaginada);
+                                return Mono.just(listPaginate);
                             });
                 });
     }
 
     @Override
-    public Flux<Capability> getCapabilityByIds(List<Long> capabilityIds) {
+    public Mono<List<Capability>> getCapabilityByIds(List<Long> capabilityIds) {
         return capabilityPersistencePort.findByIds(capabilityIds)
                 .switchIfEmpty(Mono.error(new BusinessException(TechnicalMessage.CAPABILITIES_NOT_EXISTS)));
     }

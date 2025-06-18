@@ -5,7 +5,7 @@ import com.capabilities.project.infraestructure.entrypoints.dto.CapabilityDto;
 import com.capabilities.project.infraestructure.entrypoints.handler.CapabilityHandlerImpl;
 import com.capabilities.project.infraestructure.entrypoints.util.response.ApiResponseBase;
 import com.capabilities.project.infraestructure.entrypoints.util.response.ApiResponseBaseMap;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.ApiCapabilityTechnologyResponseList;
+import com.capabilities.project.infraestructure.entrypoints.util.response.capability.ApiCapabilityTechnologyResponseList;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;

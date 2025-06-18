@@ -1,11 +1,9 @@
-package com.capabilities.project.infraestructure.persistenceadapter.webclients.response;
+package com.capabilities.project.infraestructure.persistenceadapter.webclients.response.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Data
 @Builder
@@ -15,5 +13,4 @@ public class ApiTechnologyMessageResponse {
     private String code;
     private String message;
     private String date;
-    List<TechnologyResponse> data;
 }

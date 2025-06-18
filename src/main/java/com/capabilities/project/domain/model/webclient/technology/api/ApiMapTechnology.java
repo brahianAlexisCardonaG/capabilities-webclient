@@ -1,7 +1,6 @@
 package com.capabilities.project.domain.model.webclient.technology.api;
 
 import com.capabilities.project.domain.model.webclient.technology.Technology;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.TechnologyResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

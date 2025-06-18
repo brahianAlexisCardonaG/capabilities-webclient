@@ -4,16 +4,16 @@ import com.capabilities.project.domain.api.BootcampCapabilityServicePort;
 import com.capabilities.project.domain.api.CapabilityServicePort;
 import com.capabilities.project.domain.enums.TechnicalMessage;
 import com.capabilities.project.domain.exception.BusinessException;
-import com.capabilities.project.domain.model.Capability;
-import com.capabilities.project.domain.model.client.technology.CapabilityListTechnology;
+import com.capabilities.project.domain.model.capability.Capability;
+import com.capabilities.project.domain.model.capability.CapabilityListTechnology;
 import com.capabilities.project.infraestructure.entrypoints.dto.BootcampCapabilityDto;
 import com.capabilities.project.infraestructure.entrypoints.dto.CapabilityDto;
 import com.capabilities.project.infraestructure.entrypoints.mapper.CapabilityMapper;
+import com.capabilities.project.infraestructure.entrypoints.mapper.CapabilityMapperResponse;
 import com.capabilities.project.infraestructure.entrypoints.util.error.ApplyErrorHandler;
-import com.capabilities.project.infraestructure.entrypoints.util.validate.BootcampCapabilityValidation;
-import com.capabilities.project.infraestructure.entrypoints.util.validate.ValidateRequestSave;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.mapper.CapabilityTechnologyMapperResponse;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.CapabilityListTechnologyResponse;
+import com.capabilities.project.infraestructure.entrypoints.util.validation.BootcampCapabilityValidation;
+import com.capabilities.project.infraestructure.entrypoints.util.validation.ValidateRequestSave;
+import com.capabilities.project.infraestructure.entrypoints.util.response.capability.CapabilityListTechnologyResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,7 +58,7 @@ public class CapabilityHandlerImplTest {
     private BootcampCapabilityServicePort bootcampCapabilityServicePort;
 
     @Mock
-    private CapabilityTechnologyMapperResponse capabilityTechnologyMapperResponse;
+    private CapabilityMapperResponse capabilityMapperResponse;
 
     private CapabilityHandlerImpl handler;
 
@@ -71,7 +71,7 @@ public class CapabilityHandlerImplTest {
                 applyErrorHandler,
                 bootcampCapabilityValidation,
                 bootcampCapabilityServicePort,
-                capabilityTechnologyMapperResponse
+                capabilityMapperResponse
         );
     }
 
@@ -93,7 +93,7 @@ public class CapabilityHandlerImplTest {
 
         // Simula la transformación (mapeo) de cada elemento.
         CapabilityListTechnologyResponse dummyResponse = new CapabilityListTechnologyResponse();
-        when(capabilityTechnologyMapperResponse.toCapabilityListTechnologiesResponse(any()))
+        when(capabilityMapperResponse.toCapabilityListTechnologiesResponse(any()))
                 .thenReturn(dummyResponse);
 
         // Simula que el handler de errores retorne el flujo original sin modificar.
@@ -115,6 +115,7 @@ public class CapabilityHandlerImplTest {
         // 1) Preparar datos de entrada
         CapabilityDto capabilityDto = new CapabilityDto();
         Capability capability = new Capability();
+        List<Capability> capabilityList = List.of(capability);
         List<CapabilityListTechnology> savedList = List.of(new CapabilityListTechnology());
 
         // 2) Request simulado
@@ -128,7 +129,7 @@ public class CapabilityHandlerImplTest {
                 .thenReturn(capability);
 
         // ← Aquí indicamos que matchee la firma Flux<Capability>
-        lenient().when(capabilityServicePort.saveCapabilityTechnology(any(Flux.class)))
+        when(capabilityServicePort.saveCapabilityTechnology(capabilityList))
                 .thenReturn(Mono.just(savedList));
 
         lenient().when(applyErrorHandler.applyErrorHandling(any()))
@@ -183,9 +184,13 @@ public class CapabilityHandlerImplTest {
         ServerRequest request = mock(ServerRequest.class);
         when(request.bodyToMono(BootcampCapabilityDto.class))
                 .thenReturn(Mono.just(dto));
-        when(request.bodyToMono(BootcampCapabilityDto.class)).thenReturn(Mono.just(dto));
-        when(bootcampCapabilityValidation.validateDuplicateIds(dto)).thenReturn(Mono.just(dto));
-        when(bootcampCapabilityValidation.validateFieldNotNullOrBlank(dto)).thenReturn(Mono.just(dto));
+
+        when(bootcampCapabilityValidation.validateDuplicateIds(dto))
+                .thenReturn(Mono.just(dto));
+        when(bootcampCapabilityValidation.validateFieldNotNullOrBlank(dto))
+                .thenReturn(Mono.error(new BusinessException(TechnicalMessage.INVALID_PARAMETERS)));
+
+
         when(applyErrorHandler.applyErrorHandling(any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 

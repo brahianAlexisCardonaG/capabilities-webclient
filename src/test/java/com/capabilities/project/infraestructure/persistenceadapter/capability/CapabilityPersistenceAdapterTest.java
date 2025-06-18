@@ -1,6 +1,6 @@
 package com.capabilities.project.infraestructure.persistenceadapter.capability;
 
-import com.capabilities.project.domain.model.Capability;
+import com.capabilities.project.domain.model.capability.Capability;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.entity.CapabilityEntity;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.mapper.CapabilityEntityMapper;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.repository.CapabilityRespository;
@@ -175,8 +175,7 @@ public class CapabilityPersistenceAdapterTest {
         when(capabilityEntityMapper.toModel(entity2)).thenReturn(cap2);
 
         StepVerifier.create(adapter.findByIds(ids))
-                .expectNext(cap1)
-                .expectNext(cap2)
+                .expectNext(Arrays.asList(cap1, cap2)) // Verifica que el Mono emite la lista completa
                 .verifyComplete();
 
         verify(capabilityRespository, times(1)).findAllById(ids);
@@ -186,48 +185,34 @@ public class CapabilityPersistenceAdapterTest {
 
     @Test
     void save_ShouldPersistAndReturnCapabilities() {
-        // Construimos dos Capability de ejemplo
-        Capability cap1 = new Capability(
+        Capability capability = new Capability(
                 1L,
                 "JavaScript",
                 "Desc JS",
                 Arrays.asList(700L, 800L)
         );
-        Capability cap2 = new Capability(
-                2L,
-                "TypeScript",
-                "Desc TS",
-                Collections.singletonList(900L)
-        );
 
-        // Correspondientes entidades
-        CapabilityEntity entity1 = new CapabilityEntity();
-        entity1.setId(1L);
-        CapabilityEntity entity2 = new CapabilityEntity();
-        entity2.setId(2L);
+        CapabilityEntity entity = new CapabilityEntity();
+        entity.setId(1L);
 
-        // Mockeamos el mapper: de modelo -> entidad
-        when(capabilityEntityMapper.toEntity(cap1)).thenReturn(entity1);
-        when(capabilityEntityMapper.toEntity(cap2)).thenReturn(entity2);
+        // Mock: mapper de domain a entity
+        when(capabilityEntityMapper.toEntity(capability)).thenReturn(entity);
 
-        // Cuando se guarden ambas entidades, el repositorio responde con un Flux de las mismas
-        when(capabilityRespository.saveAll(Arrays.asList(entity1, entity2)))
-                .thenReturn(Flux.just(entity1, entity2));
+        // Mock: repositorio guarda la entidad y la devuelve
+        when(capabilityRespository.save(entity)).thenReturn(Mono.just(entity));
 
-        // Y al mapear entidad -> modelo, devolvemos cap1 y cap2 otra vez
-        when(capabilityEntityMapper.toModel(entity1)).thenReturn(cap1);
-        when(capabilityEntityMapper.toModel(entity2)).thenReturn(cap2);
+        // Mock: mapper de entity a domain
+        when(capabilityEntityMapper.toModel(entity)).thenReturn(capability);
 
-        StepVerifier.create(adapter.save(Flux.just(cap1, cap2)))
-                .expectNext(cap1)
-                .expectNext(cap2)
+        // Act & Assert
+        StepVerifier.create(adapter.save(capability))
+                .expectNext(capability)
                 .verifyComplete();
 
-        verify(capabilityEntityMapper, times(1)).toEntity(cap1);
-        verify(capabilityEntityMapper, times(1)).toEntity(cap2);
-        verify(capabilityRespository, times(1)).saveAll(Arrays.asList(entity1, entity2));
-        verify(capabilityEntityMapper, times(1)).toModel(entity1);
-        verify(capabilityEntityMapper, times(1)).toModel(entity2);
+        // Verify interacciones
+        verify(capabilityEntityMapper, times(1)).toEntity(capability);
+        verify(capabilityRespository, times(1)).save(entity);
+        verify(capabilityEntityMapper, times(1)).toModel(entity);
     }
 
 

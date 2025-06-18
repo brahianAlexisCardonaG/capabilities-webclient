@@ -1,6 +1,6 @@
 package com.capabilities.project.infraestructure.persistenceadapter.bootcampcapability;
 
-import com.capabilities.project.domain.model.Capability;
+import com.capabilities.project.domain.model.capability.Capability;
 import com.capabilities.project.domain.spi.BootcampCapabilityPersistencePort;
 import com.capabilities.project.infraestructure.persistenceadapter.bootcampcapability.entity.BootcampCapabilityEntity;
 import com.capabilities.project.infraestructure.persistenceadapter.bootcampcapability.repository.BootcampCapabilityRepository;

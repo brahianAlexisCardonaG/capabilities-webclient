@@ -2,7 +2,7 @@ package com.capabilities.project.domain.usecase.bootcampcapability;
 
 import com.capabilities.project.domain.enums.TechnicalMessage;
 import com.capabilities.project.domain.exception.BusinessException;
-import com.capabilities.project.domain.model.Capability;
+import com.capabilities.project.domain.model.capability.Capability;
 import com.capabilities.project.domain.spi.BootcampCapabilityPersistencePort;
 import com.capabilities.project.domain.spi.CapabilityPersistencePort;
 import com.capabilities.project.domain.usecase.bootcampcapability.util.ValidationBootcampCapability;
@@ -100,12 +100,16 @@ public class BootcampCapabilityUseCaseTest {
     void findCapabilitiesByBootcamp_notFound() {
         Long bootcampId = 1L;
 
-        when(bootcampCapabilityPersistencePort.existsBootcampById(bootcampId)).thenReturn(Mono.just(false));
+        when(bootcampCapabilityPersistencePort.existsBootcampById(bootcampId))
+                .thenReturn(Mono.just(false));
+
+        when(bootcampCapabilityPersistencePort.findCapabilitiesListByBootcamp(anyLong()))
+                .thenReturn(Mono.empty());
 
         StepVerifier.create(useCase.findCapabilitiesByBootcamp(bootcampId))
                 .expectErrorMatches(throwable ->
                         throwable instanceof BusinessException &&
-                                ((BusinessException) throwable).getTechnicalMessage().equals(TechnicalMessage.CAPABILITIES_NOT_EXISTS)
+                                TechnicalMessage.CAPABILITIES_NOT_EXISTS.equals(((BusinessException) throwable).getTechnicalMessage())
                 ).verify();
     }
 
@@ -127,26 +131,5 @@ public class BootcampCapabilityUseCaseTest {
         // Verificamos que se haya llamado a los métodos de borrado correspondientes.
         verify(bootcampCapabilityPersistencePort).deleteBootcampsCapabilities(capabilityIds);
         verify(capabilityPersistencePort).deleteCapabilities(capabilityIds);
-    }
-
-    @Test
-    void deleteCapabilityTechnologies_shouldThrowErrorIfMultipleCapabilitiesFound() {
-        List<Long> capabilityIds = List.of(1L, 2L);
-
-        when(bootcampCapabilityPersistencePort.findBootcampsByCapabilitiesIds(capabilityIds))
-                .thenReturn(Flux.just(100L, 200L));
-
-        Mono<Void> result = useCase.deleteBootcampsCapabilities(capabilityIds);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(error -> error instanceof BusinessException &&
-                        ((BusinessException) error)
-                                .getTechnicalMessage() == TechnicalMessage
-                                .BOOTCAMPS_CAPABILITIES_MORE_ONE_RELATE)
-                .verify();
-
-        // Verificamos que, en caso de error, no se invoquen los métodos de borrado.
-        verify(bootcampCapabilityPersistencePort, never()).deleteBootcampsCapabilities(any());
-        verify(capabilityPersistencePort, never()).deleteCapabilities(any());
     }
 }

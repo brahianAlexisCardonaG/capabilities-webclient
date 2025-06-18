@@ -1,6 +1,6 @@
 package com.capabilities.project.infraestructure.persistenceadapter.capability;
 
-import com.capabilities.project.domain.model.Capability;
+import com.capabilities.project.domain.model.capability.Capability;
 import com.capabilities.project.domain.spi.CapabilityPersistencePort;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.mapper.CapabilityEntityMapper;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.repository.CapabilityRespository;
@@ -40,9 +40,10 @@ public class CapabilityPersistenceAdapter implements CapabilityPersistencePort {
     }
 
     @Override
-    public Flux<Capability> findByIds(List<Long> capabilityIds) {
+    public Mono<List<Capability>> findByIds(List<Long> capabilityIds) {
         return capabilityRespository.findAllById(capabilityIds)
-                .map(capabilityEntityMapper::toModel);
+                .map(capabilityEntityMapper::toModel)
+                .collectList();
     }
 
     @Override
@@ -54,11 +55,8 @@ public class CapabilityPersistenceAdapter implements CapabilityPersistencePort {
     }
 
     @Override
-    public Flux<Capability> save(Flux<Capability> capability) {
-        return capability
-                .map(capabilityEntityMapper::toEntity)
-                .collectList()
-                .flatMapMany(capabilityRespository::saveAll)
+    public Mono<Capability> save(Capability capability) {
+        return capabilityRespository.save(capabilityEntityMapper.toEntity(capability))
                 .map(capabilityEntityMapper::toModel);
     }
 }

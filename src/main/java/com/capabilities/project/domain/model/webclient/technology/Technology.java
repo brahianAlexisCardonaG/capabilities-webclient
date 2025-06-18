@@ -1,4 +1,4 @@
-package com.capabilities.project.domain.model.client.technology;
+package com.capabilities.project.domain.model.webclient.technology;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,5 +12,4 @@ import lombok.NoArgsConstructor;
 public class Technology {
     private Long id;
     private String name;
-    private String capabilityName;
 }

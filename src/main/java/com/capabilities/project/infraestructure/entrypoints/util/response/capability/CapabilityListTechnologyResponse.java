@@ -1,4 +1,5 @@
-package com.capabilities.project.infraestructure.persistenceadapter.webclients.response;
+package com.capabilities.project.infraestructure.entrypoints.util.response.capability;
+import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.TechnologyResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

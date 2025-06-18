@@ -1,4 +1,4 @@
-package com.capabilities.project.domain.model;
+package com.capabilities.project.domain.model.capability;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

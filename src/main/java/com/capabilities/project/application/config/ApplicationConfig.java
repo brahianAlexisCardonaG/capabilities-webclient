@@ -9,8 +9,6 @@ import com.capabilities.project.domain.usecase.bootcampcapability.BootcampCapabi
 import com.capabilities.project.domain.usecase.bootcampcapability.util.ValidationBootcampCapability;
 import com.capabilities.project.domain.usecase.capability.CapabilityUseCase;
 import com.capabilities.project.infraestructure.persistenceadapter.bootcampcapability.BootcampCapabilityPersistenceAdapter;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.TechnologyClient;
-import com.capabilities.project.infraestructure.persistenceadapter.webclients.mapper.TechnologyMapper;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.CapabilityPersistenceAdapter;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.mapper.CapabilityEntityMapper;
 import com.capabilities.project.infraestructure.persistenceadapter.capability.repository.CapabilityRespository;
@@ -37,9 +35,8 @@ public class ApplicationConfig {
     @Bean
     public CapabilityServicePort capabilityServicePort(CapabilityPersistencePort capabilityPersistencePort,
                                                        TechnologyWebClientPort technologyWebClientPort,
-                                                       TechnologyMapper technologyMapper,
                                                        TransactionalOperator transactionalOperator) {
-        return new CapabilityUseCase(capabilityPersistencePort, technologyWebClientPort, technologyMapper, transactionalOperator);
+        return new CapabilityUseCase(capabilityPersistencePort, technologyWebClientPort, transactionalOperator);
     }
 
     @Bean

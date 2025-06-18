@@ -1,5 +1,6 @@
-package com.capabilities.project.infraestructure.persistenceadapter.webclients.response;
+package com.capabilities.project.infraestructure.persistenceadapter.webclients.response.api;
 
+import com.capabilities.project.infraestructure.persistenceadapter.webclients.response.TechnologyResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +13,7 @@ import java.util.Map;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ApiCapabilityTechnologyResponse {
+public class ApiMapTechnologyResponse {
     private String code;
     private String message;
     private String date;

@@ -1,4 +1,4 @@
-package com.capabilities.project.infraestructure.entrypoints.util.validate;
+package com.capabilities.project.infraestructure.entrypoints.util.validation;
 
 import com.capabilities.project.infraestructure.entrypoints.dto.CapabilityDto;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +14,14 @@ public class ValidateRequestSave {
     public Flux<CapabilityDto> validateAndMapRequest(ServerRequest request) {
         return request.bodyToFlux(CapabilityDto.class)
                 .collectList()
-                .flatMap(capabilityValidationDto::validateNoDuplicateNames)
-                .flatMapMany(Flux::fromIterable)
-                .flatMap(capabilityValidationDto::validateLengthWords)
-                .flatMap(capabilityValidationDto::validateFieldNotNullOrBlank);
+                .flatMapMany(dtoList ->
+                        capabilityValidationDto.validateNoDuplicateNames(dtoList)
+                                .thenMany(Flux.fromIterable(dtoList))
+                )
+                .flatMap(dto ->
+                        capabilityValidationDto.validateLengthWords(dto)
+                                .then(capabilityValidationDto.validateFieldNotNullOrBlank(dto))
+                                .thenReturn(dto) // Si pasó todas, devolvemos el DTO
+                );
     }
 }
